@@ -34,6 +34,28 @@ export async function login(
   return response.json() as Promise<{ token: string; username: string }>
 }
 
+export async function signup(
+  username: string,
+  password: string,
+): Promise<{ token: string; username: string }> {
+  let response: Response
+  try {
+    response = await fetch(`${BASE_URL}/api/v1/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+  } catch {
+    throw new ApiError('Network error', null)
+  }
+
+  if (!response.ok) {
+    throw new ApiError(`Request failed with status ${response.status}`, response.status)
+  }
+
+  return response.json() as Promise<{ token: string; username: string }>
+}
+
 export async function fetchData(token: string): Promise<ChatData> {
   let response: Response
   try {

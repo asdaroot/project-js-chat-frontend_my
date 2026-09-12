@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ApiError, fetchData, login } from './lib/api'
+import { ApiError, fetchData, login, signup } from './lib/api'
 import type { ChatData } from './types'
 import './App.css'
 
@@ -11,15 +11,42 @@ type AuthState =
   | { status: 'loggedOut' }
   | { status: 'loggedIn'; token: string; username: string }
 
+type AuthMode = 'login' | 'signup'
+
 function App() {
   const [auth, setAuth] = useState<AuthState>({ status: 'loggedOut' })
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
 
   return (
     <main className="auth-screen">
       {auth.status === 'loggedOut' ? (
-        <LoginForm
-          onSuccess={(token, username) => setAuth({ status: 'loggedIn', token, username })}
-        />
+        <section className="auth-card">
+          <div className="auth-tabs" role="tablist">
+            <button
+              type="button"
+              className={authMode === 'login' ? 'auth-tab active' : 'auth-tab'}
+              onClick={() => setAuthMode('login')}
+            >
+              Войти
+            </button>
+            <button
+              type="button"
+              className={authMode === 'signup' ? 'auth-tab active' : 'auth-tab'}
+              onClick={() => setAuthMode('signup')}
+            >
+              Регистрация
+            </button>
+          </div>
+          {authMode === 'login' ? (
+            <LoginForm
+              onSuccess={(token, username) => setAuth({ status: 'loggedIn', token, username })}
+            />
+          ) : (
+            <SignupForm
+              onSuccess={(token, username) => setAuth({ status: 'loggedIn', token, username })}
+            />
+          )}
+        </section>
       ) : (
         <AuthenticatedView
           username={auth.username}
@@ -60,7 +87,7 @@ function LoginForm({
   }
 
   return (
-    <section className="auth-card">
+    <>
       <h1>Вход в чат</h1>
       <form className="auth-form" onSubmit={handleSubmit}>
         <label>
@@ -85,7 +112,89 @@ function LoginForm({
           {submitting ? 'Вход…' : 'Войти'}
         </button>
       </form>
-    </section>
+    </>
+  )
+}
+
+function SignupForm({
+  onSuccess,
+}: {
+  onSuccess: (token: string, username: string) => void
+}) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setError(null)
+
+    if (!username) {
+      setError('логин не может быть пустым')
+      return
+    }
+    if (password.length < 3) {
+      setError('минимум 3 символа')
+      return
+    }
+    if (password !== confirmPassword) {
+      setError('пароли не совпадают')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const result = await signup(username, password)
+      onSuccess(result.token, result.username)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setError('такой пользователь уже существует')
+      } else {
+        setError('не удалось подключиться к серверу')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <>
+      <h1>Регистрация</h1>
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <label>
+          Логин
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+          />
+        </label>
+        <label>
+          Пароль
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </label>
+        <label>
+          Подтвердите пароль
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </label>
+        {error && <p className="auth-error">{error}</p>}
+        <button type="submit" disabled={submitting}>
+          {submitting ? 'Регистрация…' : 'Зарегистрироваться'}
+        </button>
+      </form>
+    </>
   )
 }
 
