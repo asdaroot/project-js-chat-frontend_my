@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { ApiError, fetchData, login, signup } from './lib/api'
-import type { ChatData } from './types'
+import { ApiError, login, signup } from './lib/api'
+import { clearSession, loadSession, saveSession } from './lib/session'
+import ChatWindow from './components/ChatWindow'
 import './App.css'
 
 const INITIAL_USERNAME = 'admin'
@@ -14,8 +15,22 @@ type AuthState =
 type AuthMode = 'login' | 'signup'
 
 function App() {
-  const [auth, setAuth] = useState<AuthState>({ status: 'loggedOut' })
+  const [auth, setAuth] = useState<AuthState>(() => {
+    const session = loadSession()
+    if (!session) return { status: 'loggedOut' }
+    return { status: 'loggedIn', token: session.token, username: session.username }
+  })
   const [authMode, setAuthMode] = useState<AuthMode>('login')
+
+  const handleAuthSuccess = (token: string, username: string) => {
+    saveSession({ token, username })
+    setAuth({ status: 'loggedIn', token, username })
+  }
+
+  const handleLogout = () => {
+    clearSession()
+    setAuth({ status: 'loggedOut' })
+  }
 
   return (
     <main className="auth-screen">
@@ -38,20 +53,16 @@ function App() {
             </button>
           </div>
           {authMode === 'login' ? (
-            <LoginForm
-              onSuccess={(token, username) => setAuth({ status: 'loggedIn', token, username })}
-            />
+            <LoginForm onSuccess={handleAuthSuccess} />
           ) : (
-            <SignupForm
-              onSuccess={(token, username) => setAuth({ status: 'loggedIn', token, username })}
-            />
+            <SignupForm onSuccess={handleAuthSuccess} />
           )}
         </section>
       ) : (
-        <AuthenticatedView
+        <ChatWindow
           username={auth.username}
           token={auth.token}
-          onLogout={() => setAuth({ status: 'loggedOut' })}
+          onLogout={handleLogout}
         />
       )}
     </main>
@@ -195,60 +206,6 @@ function SignupForm({
         </button>
       </form>
     </>
-  )
-}
-
-function AuthenticatedView({
-  username,
-  token,
-  onLogout,
-}: {
-  username: string
-  token: string
-  onLogout: () => void
-}) {
-  const [data, setData] = useState<ChatData | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchData(token)
-      .then((result) => {
-        if (!cancelled) setData(result)
-      })
-      .catch(() => {
-        if (!cancelled) setError('не удалось загрузить данные')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [token])
-
-  return (
-    <section className="auth-card">
-      <header className="auth-card-header">
-        <h1>Вы вошли как {username}</h1>
-        <button type="button" className="logout-button" onClick={onLogout}>
-          Выйти
-        </button>
-      </header>
-      <p className="token-display">Токен: {token}</p>
-      {error ? (
-        <p className="auth-error">{error}</p>
-      ) : data ? (
-        <div className="chat-summary">
-          <h2>Каналы</h2>
-          <ul className="channel-list">
-            {data.channels.map((channel) => (
-              <li key={channel.id}>{channel.name}</li>
-            ))}
-          </ul>
-          <p className="message-count">Сообщений: {data.messages.length}</p>
-        </div>
-      ) : (
-        <p>Загрузка…</p>
-      )}
-    </section>
   )
 }
 

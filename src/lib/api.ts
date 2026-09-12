@@ -1,6 +1,6 @@
 import type { ChatData } from '../types'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+export const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export class ApiError extends Error {
   status: number | null

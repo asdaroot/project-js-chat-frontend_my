@@ -1,19 +1,4 @@
-## Purpose
-
-Handles authentication for the chat frontend: users log in with their credentials, the session (token and username) is persisted in localStorage and restored on reload, and users can log out back to the login form.
-
-## Requirements
-
-### Requirement: User can log in with credentials
-The system SHALL let the user authenticate by submitting a username and password. On success the user SHALL enter the authenticated state. On invalid credentials the system SHALL show an error message and keep the user logged out.
-
-#### Scenario: Successful login
-- **WHEN** the user submits a valid username and password
-- **THEN** the system authenticates the user and shows the authenticated view with a greeting containing the username
-
-#### Scenario: Invalid credentials
-- **WHEN** the user submits a username or password that the backend rejects
-- **THEN** the system shows an error message ("неверный логин или пароль") and keeps the user on the login form without entering the authenticated state
+## ADDED Requirements
 
 ### Requirement: Authenticated session persists across reloads
 
@@ -29,6 +14,8 @@ The system SHALL save the token and username to localStorage after a successful 
 - **WHEN** the user logs out
 - **THEN** the stored session is removed from localStorage, so a subsequent reload opens on the login form
 
+## MODIFIED Requirements
+
 ### Requirement: User can log out
 
 The authenticated view SHALL include a logout button. When clicked, the system SHALL clear the authenticated state and the persisted session, and return to the login form. The authenticated state SHALL survive a page reload while a stored session exists.
@@ -42,3 +29,17 @@ The authenticated view SHALL include a logout button. When clicked, the system S
 
 - **WHEN** an authenticated user reloads the page
 - **THEN** the system restores the session from localStorage and opens the chat window again
+
+## REMOVED Requirements
+
+### Requirement: Authenticated user sees initial chat state
+
+**Reason**: The placeholder summary view (channel names and message count) is replaced by the full chat window, whose behavior is now specified by the new `chat` capability.
+
+**Migration**: The authenticated view is now the chat window described by capability `chat`.
+
+### Requirement: Authenticated user sees their session token
+
+**Reason**: Debug aid from the foundation milestone; token display is no longer part of the UI. The token now lives in localStorage for session persistence.
+
+**Migration**: None — the UI no longer renders the token value.
