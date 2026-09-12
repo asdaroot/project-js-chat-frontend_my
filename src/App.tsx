@@ -1,121 +1,145 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
+import { ApiError, fetchData, login } from './lib/api'
+import type { ChatData } from './types'
 import './App.css'
 
+const INITIAL_USERNAME = 'admin'
+const INITIAL_PASSWORD = 'admin'
+
+type AuthState =
+  | { status: 'loggedOut' }
+  | { status: 'loggedIn'; token: string; username: string }
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [auth, setAuth] = useState<AuthState>({ status: 'loggedOut' })
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
+    <main className="auth-screen">
+      {auth.status === 'loggedOut' ? (
+        <LoginForm
+          onSuccess={(token, username) => setAuth({ status: 'loggedIn', token, username })}
+        />
+      ) : (
+        <AuthenticatedView
+          username={auth.username}
+          token={auth.token}
+          onLogout={() => setAuth({ status: 'loggedOut' })}
+        />
+      )}
+    </main>
+  )
+}
+
+function LoginForm({
+  onSuccess,
+}: {
+  onSuccess: (token: string, username: string) => void
+}) {
+  const [username, setUsername] = useState(INITIAL_USERNAME)
+  const [password, setPassword] = useState(INITIAL_PASSWORD)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      const result = await login(username, password)
+      onSuccess(result.token, result.username)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setError('неверный логин или пароль')
+      } else {
+        setError('не удалось подключиться к серверу')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <section className="auth-card">
+      <h1>Вход в чат</h1>
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <label>
+          Логин
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+          />
+        </label>
+        <label>
+          Пароль
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+        </label>
+        {error && <p className="auth-error">{error}</p>}
+        <button type="submit" disabled={submitting}>
+          {submitting ? 'Вход…' : 'Войти'}
         </button>
-      </section>
+      </form>
+    </section>
+  )
+}
 
-      <div className="ticks"></div>
+function AuthenticatedView({
+  username,
+  token,
+  onLogout,
+}: {
+  username: string
+  token: string
+  onLogout: () => void
+}) {
+  const [data, setData] = useState<ChatData | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
+  useEffect(() => {
+    let cancelled = false
+    fetchData(token)
+      .then((result) => {
+        if (!cancelled) setData(result)
+      })
+      .catch(() => {
+        if (!cancelled) setError('не удалось загрузить данные')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  return (
+    <section className="auth-card">
+      <header className="auth-card-header">
+        <h1>Вы вошли как {username}</h1>
+        <button type="button" className="logout-button" onClick={onLogout}>
+          Выйти
+        </button>
+      </header>
+      <p className="token-display">Токен: {token}</p>
+      {error ? (
+        <p className="auth-error">{error}</p>
+      ) : data ? (
+        <div className="chat-summary">
+          <h2>Каналы</h2>
+          <ul className="channel-list">
+            {data.channels.map((channel) => (
+              <li key={channel.id}>{channel.name}</li>
+            ))}
           </ul>
+          <p className="message-count">Сообщений: {data.messages.length}</p>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      ) : (
+        <p>Загрузка…</p>
+      )}
+    </section>
   )
 }
 
