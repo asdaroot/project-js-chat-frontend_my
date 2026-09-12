@@ -1,32 +1,70 @@
-# React + TypeScript + Vite
+# Chat Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Фронтенд учебного чат-мессенджера на React + TypeScript + Vite. Работает в паре с бэкендом `@hexlet/chat-server` (Fastify + Socket.IO + JWT), который предоставляет REST API и realtime-сокеты.
 
-Currently, two official plugins are available:
+## Возможности
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Вход в систему по логину и паролю (`POST /api/v1/login`)
+- Отображение данных после входа: список каналов, количество сообщений, выданный JWT-токен
+- Выход из системы и возврат к форме входа
+- Токен хранится только в памяти компонента: после перезагрузки страницы нужно войти заново
 
-## React Compiler
+## Установка
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Запуск
+
+Бэкенд должен быть доступен по адресу из конфигурации (см. ниже), по умолчанию `http://192.168.233.128:3000`.
+
+```bash
+npm run dev -- --host --port 8000
+```
+
+Фронтенд будет доступен по адресу `http://localhost:8000/` (и по сетевому адресу машины, напр. `http://192.168.233.128:8000/`).
+
+> Порт 8000 выбран потому, что порт 3000 уже занят бэкендом. Если нужно переопределить — замените `--port` на нужное значение.
+
+## Конфигурация
+
+URL бэкенда задаётся в переменной окружения `VITE_API_URL`. Значение по умолчанию — `http://192.168.233.128:3000`.
+
+Скопируйте пример конфигурации при необходимости:
+
+```bash
+cp .env.example .env.local
+```
+
+`VITE_API_URL=http://192.168.233.128:3000`
+
+## Скрипты
+
+| Команда          | Описание                         |
+| ---------------- | -------------------------------- |
+| `npm run dev`    | Запуск dev-сервера с HMR         |
+| `npm run build`  | Сборка продакшн-версии           |
+| `npm run lint`   | Линтинг (oxlint)                 |
+| `npm run preview`| Предпросмотр продакшн-сборки     |
+
+## Структура
+
+```
+src/
+  App.tsx          — экран входа и авторизованный вид
+  App.css          — стили интерфейса
+  index.css        — глобальные стили и переменные
+  lib/api.ts       — обёртки над REST API (login, fetchData)
+  types.ts         — типы данных (Channel, Message, ChatData)
+```
+
+## API бэкенда
+
+- `POST /api/v1/login` — вход: `{ username, password }` → `{ token, username }`
+- `POST /api/v1/signup` — регистрация нового пользователя
+- `GET /api/v1/data` — начальное состояние чата (каналы и сообщения), требует `Authorization: Bearer <token>`
+
+Тестовый пользователь по умолчанию — `admin` / `admin`.
+
+Документация по Socket.IO-событиям и бэкенду: репозиторий `@hexlet/chat-server`.
